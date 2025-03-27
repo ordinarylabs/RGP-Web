@@ -86,7 +86,7 @@ pub fn encrypt_dh(
 
     let encrypted_content = match rgp::encrypt(
         fixed_fingerprint,
-        content.clone(),
+        content,
         rgp::Encrypt::Dh(fixed_private_key, &fixed_public_keys, None),
     ) {
         Ok((encrypted_content, _)) => encrypted_content,
@@ -94,4 +94,75 @@ pub fn encrypt_dh(
     };
 
     Ok(encrypted_content)
+}
+
+#[wasm_bindgen]
+pub fn decrypt_dh(
+    position: usize,
+    mut encrypted_content: Vec<u8>,
+    verifier: Vec<u8>,
+    public_key: Vec<u8>,
+    private_key: Vec<u8>,
+) -> Result<Vec<u8>, String> {
+    let fixed_verifier: [u8; 32] = match verifier.try_into() {
+        Ok(f) => f,
+        Err(_) => return Err("failed to convert verifier to 32 len array".into()),
+    };
+
+    let fixed_public_key: [u8; 32] = match public_key.try_into() {
+        Ok(f) => f,
+        Err(_) => return Err("failed to convert public_key to 32 len array".into()),
+    };
+
+    let fixed_private_key: [u8; 32] = match private_key.try_into() {
+        Ok(f) => f,
+        Err(_) => return Err("failed to convert private_key to 32 len array".into()),
+    };
+
+    if let rgp::Components::Dh(encrypted_key, _) =
+        rgp::extract_components_mut(position, &mut encrypted_content)
+    {
+        // decrypt message with encrypted content key
+        let decrypted_content = match rgp::decrypt(
+            Some(&fixed_verifier),
+            &encrypted_content,
+            rgp::Decrypt::Dh(encrypted_key, fixed_public_key, fixed_private_key, None),
+        ) {
+            Ok((decrypted_content, _)) => decrypted_content,
+            Err(err) => return Err(err.into()),
+        };
+
+        return Ok(decrypted_content);
+    }
+
+    Err("not DH encryption type".into())
+}
+
+#[test]
+fn test() -> Result<(), String> {
+    let fp_res = generate_fingerprint();
+
+    let rx_dh_keys = generate_dh_keys();
+    let tx_dh_keys = generate_dh_keys();
+
+    let content = vec![1, 2, 3, 4, 5];
+
+    let encrypted = encrypt_dh(
+        fp_res.fingerprint,
+        content.clone(),
+        tx_dh_keys.private,
+        rx_dh_keys.public,
+    )?;
+
+    let decrypted = decrypt_dh(
+        0,
+        encrypted,
+        fp_res.verifier,
+        tx_dh_keys.public,
+        rx_dh_keys.private,
+    )?;
+
+    assert_eq!(content, decrypted);
+
+    Ok(())
 }
