@@ -1,6 +1,6 @@
 # RGP Web
 
-WebAssembly bindings for RGP.
+WebAssembly bindings for [RGP](https://github.com/ordinarylabs/RGP).
 
 ## Usage
 
