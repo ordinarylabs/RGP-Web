@@ -86,11 +86,11 @@ pub fn encrypt_dh(
 
     let encrypted_content = match rgp::encrypt(
         fixed_fingerprint,
-        content,
+        content.clone(),
         rgp::Encrypt::Dh(fixed_private_key, &fixed_public_keys, None),
     ) {
         Ok((encrypted_content, _)) => encrypted_content,
-        Err(err) => return Err(err.into()),
+        Err(err) => return Ok(err.into()),
     };
 
     Ok(encrypted_content)
